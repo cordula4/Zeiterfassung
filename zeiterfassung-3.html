@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#f5f2ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Zeiterfassung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f2ee; --surface: #faf8f5; --border: #e0dbd4;
+    --text: #1a1714; --muted: #8a837a;
+    --accent: #2d5a3d; --accent-light: #e8f0eb;
+    --danger: #8b2e2e; --danger-light: #f5eaea;
+    --warn: #7a5c1e; --warn-light: #f5f0e0;
+    --radius: 12px; --mono: 'DM Mono', monospace; --serif: 'DM Serif Display', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--mono); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.6; }
+
+  header { padding: 24px 20px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 12px; }
+  header h1 { font-family: var(--serif); font-size: 26px; font-weight: 400; letter-spacing: -0.3px; }
+  .version { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  nav { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
+  nav button { flex: 1; padding: 12px 4px; background: none; border: none; border-bottom: 2px solid transparent; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  nav button.active { color: var(--text); border-bottom-color: var(--text); }
+
+  .page { display: none; padding: 20px; }
+  .page.active { display: block; }
+
+  .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; text-align: center; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; background: var(--muted); }
+  .status-dot.active { background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .status-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; justify-content: center; }
+  .status-project { font-family: var(--serif); font-size: 22px; margin-bottom: 4px; }
+  .status-time { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .elapsed { font-size: 36px; font-weight: 300; letter-spacing: -1px; margin-bottom: 16px; font-variant-numeric: tabular-nums; }
+
+  .nfc-btn { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto; cursor: pointer; transition: all 0.2s; gap: 4px; color: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .nfc-btn svg { width: 28px; height: 28px; }
+  .nfc-btn.scanning { border-color: var(--accent); color: var(--accent); animation: scanPulse 1.5s infinite; }
+  @keyframes scanPulse { 0%,100%{box-shadow:0 0 0 0 rgba(45,90,61,0.15)}50%{box-shadow:0 0 0 12px rgba(45,90,61,0)} }
+
+  .confirm-panel { background: var(--accent-light); border: 1px solid #b8d4be; border-radius: var(--radius); padding: 20px; margin-bottom: 16px; display: none; }
+  .confirm-panel.show { display: block; }
+  .confirm-panel.stop { background: var(--danger-light); border-color: #d4b8b8; }
+  .confirm-title { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .confirm-project { font-family: var(--serif); font-size: 20px; margin-bottom: 16px; }
+  .confirm-actions { display: flex; gap: 8px; }
+
+  .btn { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border); font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; background: var(--surface); color: var(--text); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+  .btn:active { transform: scale(0.97); }
+
+  .section-title { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; margin-top: 20px; }
+  .project-list { display: flex; flex-direction: column; gap: 8px; }
+  .project-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .project-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .project-name { flex: 1; font-size: 14px; }
+  .project-tag { font-size: 11px; color: var(--muted); }
+  .icon-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  .add-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-top: 12px; display: none; }
+  .add-form.show { display: block; }
+  .form-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .form-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.06em; text-transform: uppercase; }
+  input[type=text], input[type=date], input[type=time], input[type=number], select {
+    flex: 1; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--mono); font-size: 13px; background: var(--bg); color: var(--text); outline: none;
+    -webkit-appearance: none; appearance: none; width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--text); }
+  .color-options { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .color-opt { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.15s; }
+  .color-opt.selected { border-color: var(--text); transform: scale(1.2); }
+
+  /* LOG */
+  .day-group { margin-bottom: 20px; }
+  .day-header { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 8px 0 4px; border-bottom: 1px solid var(--border); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .day-corr-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: var(--warn-light); color: var(--warn); border: 1px solid #d4c490; cursor: pointer; flex-shrink: 0; }
+  .entry-item { display: flex; align-items: center; padding: 10px 12px; border-radius: 8px; gap: 10px; margin-bottom: 4px; background: var(--surface); border: 1px solid var(--border); }
+  .entry-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .entry-info { flex: 1; min-width: 0; }
+  .entry-project { font-size: 13px; }
+  .entry-times { font-size: 11px; color: var(--muted); }
+  .entry-dur { font-size: 13px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .entry-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .entry-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; }
+  .entry-btn svg { width: 14px; height: 14px; display: block; }
+
+  /* STATS */
+  .balance-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .balance-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .balance-value { font-family: var(--serif); font-size: 28px; letter-spacing: -0.5px; }
+  .balance-value.positive { color: var(--accent); }
+  .balance-value.negative { color: var(--danger); }
+  .balance-value.neutral  { color: var(--text); }
+  .balance-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .balance-edit-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 20px; }
+  .week-day { text-align: center; }
+  .week-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; }
+  .week-bar-wrap { height: 60px; display: flex; align-items: flex-end; justify-content: center; }
+  .week-bar { width: 24px; border-radius: 4px 4px 0 0; background: var(--border); min-height: 2px; }
+  .week-bar.today { background: var(--accent); }
+  .week-hours { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .summary-row { display: flex; justify-content: space-between; padding: 12px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 6px; }
+  .summary-label { font-size: 12px; color: var(--muted); }
+  .summary-val { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .proj-bar-item { margin-bottom: 10px; }
+  .proj-bar-header { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+  .proj-bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .proj-bar-fill { height: 100%; border-radius: 3px; }
+  .export-btn { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; color: var(--text); margin-bottom: 8px; }
+  .export-btn:active { background: var(--border); }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.45); display: flex; align-items: flex-end; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border-radius: 16px 16px 0 0; padding: 24px 20px 40px; width: 100%; max-width: 480px; transform: translateY(20px); transition: transform 0.2s; max-height: 90vh; overflow-y: auto; }
+  .modal-overlay.show .modal { transform: translateY(0); }
+  .modal-title { font-family: var(--serif); font-size: 20px; margin-bottom: 20px; }
+  .modal-hint { font-size: 11px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-sep { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 20px 0 12px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .modal-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+  .modal-row label { font-size: 13px; flex: 1; }
+  .modal-row input[type=number] { width: 90px; flex: none; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-family: var(--mono); font-size: 13px; background: var(--bg); color: var(--text); text-align: right; }
+
+  /* WEEK CORR */
+  .corr-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .corr-item { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 12px; }
+  .corr-week { flex: 1; }
+  .corr-type { padding: 2px 8px; border-radius: 10px; font-size: 10px; letter-spacing: 0.05em; }
+  .type-urlaub   { background: #e8f0fb; color: #2d4a7a; }
+  .type-feiertag { background: #f0e8fb; color: #5a2d7a; }
+  .type-krank    { background: var(--danger-light); color: var(--danger); }
+  .type-sonstige { background: var(--warn-light); color: var(--warn); }
+  .corr-hours { color: var(--muted); flex-shrink: 0; }
+
+  /* NFC */
+  .tag-input-wrap { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .tag-scan-btn { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-family: var(--mono); font-size: 11px; cursor: pointer; white-space: nowrap; color: var(--text); flex-shrink: 0; }
+
+  .warn-box { background: var(--warn-light); border: 1px solid #d4c490; border-radius: var(--radius); padding: 14px 16px; font-size: 12px; color: var(--warn); margin-bottom: 16px; line-height: 1.7; display: none; }
+  .warn-box.show { display: block; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 12px; line-height: 2; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: var(--bg); padding: 10px 20px; border-radius: 20px; font-size: 12px; opacity: 0; transition: all 0.2s; pointer-events: none; z-index: 300; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Zeiterfassung</h1>
+  <span class="version">NFC</span>
+</header>
+
+<nav>
+  <button class="active" onclick="showPage('scan')">Erfassen</button>
+  <button onclick="showPage('log')">Einträge</button>
+  <button onclick="showPage('stats')">Auswertung</button>
+  <button onclick="showPage('projects')">Projekte</button>
+</nav>
+
+<!-- SCAN PAGE -->
+<div class="page active" id="page-scan">
+  <div class="warn-box" id="nfc-warn">
+    ⚠ Web NFC benötigt Chrome auf Android über HTTPS (oder localhost). Manuelles Stempeln über die Projektliste funktioniert trotzdem.
+  </div>
+  <div class="status-card">
+    <div class="status-label"><span class="status-dot" id="status-dot"></span><span id="status-text">Keine aktive Sitzung</span></div>
+    <div class="status-project" id="status-project">–</div>
+    <div class="status-time" id="status-time"></div>
+    <div class="elapsed" id="elapsed">00:00:00</div>
+    <button class="nfc-btn" id="nfc-btn" onclick="startNFCScan()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+      </svg>
+      NFC
+    </button>
+  </div>
+  <div class="confirm-panel" id="confirm-start">
+    <div class="confirm-title">Einstempeln bestätigen</div>
+    <div class="confirm-project" id="confirm-project-name">–</div>
+    <div class="confirm-actions">
+      <button class="btn" onclick="cancelConfirm()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="confirmStart()">Einstempeln ✓</button>
+    </div>
+  </div>
+  <div class="confirm-panel stop" id="confirm-stop">
+    <div class="confirm-title">Ausstempeln bestätigen</div>
+    <div class="confirm-project" id="confirm-stop-name">–</div>
+    <div id="confirm-stop-dur" style="font-size:12px;color:var(--muted);margin-bottom:16px;"></div>
+    <div class="confirm-actions">
+      <button class="btn" onclick="cancelConfirm()">Abbrechen</button>
+      <button class="btn btn-danger" onclick="confirmStop()">Ausstempeln ✓</button>
+    </div>
+  </div>
+  <div class="section-title">Projekt manuell wählen</div>
+  <div class="project-list" id="quick-projects"></div>
+</div>
+
+<!-- LOG PAGE -->
+<div class="page" id="page-log">
+  <button class="btn btn-primary" style="width:100%;margin-bottom:16px" onclick="openAddEntry()">+ Eintrag hinzufügen</button>
+  <div id="log-content"></div>
+</div>
+
+<!-- STATS PAGE -->
+<div class="page" id="page-stats">
+  <div class="balance-card">
+    <div>
+      <div class="balance-label">Balance</div>
+      <div class="balance-value" id="balance-value">+0h 0min</div>
+      <div class="balance-sub" id="balance-sub"></div>
+    </div>
+    <button class="balance-edit-btn" onclick="openSettings()">⚙ Einstellungen</button>
+  </div>
+  <div class="section-title">Diese Woche</div>
+  <div class="week-grid" id="week-grid"></div>
+  <div id="summary-rows"></div>
+  <div class="section-title" style="margin-top:24px">Projekte diese Woche</div>
+  <div id="project-breakdown"></div>
+  <div class="section-title" style="margin-top:24px">Export</div>
+  <button class="export-btn" onclick="exportCSV()">↓ CSV diese Woche</button>
+  <button class="export-btn" onclick="exportCSVAll()">↓ CSV alle Einträge</button>
+</div>
+
+<!-- PROJECTS PAGE -->
+<div class="page" id="page-projects">
+  <div class="section-title">Projekte & NFC-Tags</div>
+  <div class="project-list" id="projects-list"></div>
+  <button class="btn" style="width:100%;margin-top:12px" onclick="toggleAddForm()">+ Projekt hinzufügen</button>
+  <div class="add-form" id="add-form">
+    <div class="form-row"><input type="text" id="new-proj-name" placeholder="Projektname" /></div>
+    <div class="form-label">Farbe</div>
+    <div class="color-options" id="color-options"></div>
+    <div class="form-label">NFC-Tag ID (optional)</div>
+    <div class="tag-input-wrap">
+      <input type="text" id="nfc-tag-manual" placeholder="Tag-ID manuell oder scannen" />
+      <button class="tag-scan-btn" id="link-nfc-btn" onclick="linkNFCTag()">📡 Scan</button>
+    </div>
+    <div id="nfc-tag-status" style="font-size:11px;color:var(--muted);margin-bottom:10px;min-height:16px;"></div>
+    <div class="form-row">
+      <button class="btn" onclick="toggleAddForm()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveProject()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settings-modal" onclick="closeModalOutside(event,'settings-modal')">
+  <div class="modal">
+    <div class="modal-title">Einstellungen</div>
+    <div class="modal-row">
+      <label>Wochensoll (Stunden)</label>
+      <input type="number" id="setting-weekly-hours" min="1" max="80" step="0.5" value="40">
+    </div>
+    <div class="modal-row">
+      <label>Startsaldo (Minuten)</label>
+      <input type="number" id="setting-balance-offset" min="-9999" max="9999" step="1" value="0">
+    </div>
+    <div class="modal-hint">Startsaldo: bereits vorhandene Über-/Minusstunden beim Start der Aufzeichnung. Positiv = Überstunden, negativ = Minusstunden.</div>
+
+    <div class="modal-sep">Wochenkorrekturen (Urlaub · Feiertag · Krankheit)</div>
+    <div class="modal-hint">Trage Kalenderwochen ein, in denen das Sollstunden reduziert wird. Das Wochensoll wird um die eingetragenen Stunden gekürzt.</div>
+    <div class="corr-list" id="corr-list"></div>
+
+    <div class="form-label">Kalenderwoche</div>
+    <input type="text" id="corr-week" placeholder="z.B. 2025-W03" style="margin-bottom:10px" />
+    <div class="form-label">Typ</div>
+    <select id="corr-type" style="margin-bottom:10px">
+      <option value="urlaub">Urlaub</option>
+      <option value="feiertag">Feiertag</option>
+      <option value="krank">Krankheit</option>
+      <option value="sonstige">Sonstiges</option>
+    </select>
+    <div class="form-label">Stunden reduzieren um</div>
+    <div class="form-row">
+      <input type="number" id="corr-hours" min="0.5" max="40" step="0.5" placeholder="z.B. 8" />
+      <span style="font-size:12px;color:var(--muted);flex-shrink:0;padding:0 4px">h</span>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:8px;margin-top:4px" onclick="addWeekCorr()">+ Korrektur hinzufügen</button>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('settings-modal')">Schließen</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENTRY ADD/EDIT MODAL -->
+<div class="modal-overlay" id="entry-modal" onclick="closeModalOutside(event,'entry-modal')">
+  <div class="modal">
+    <div class="modal-title" id="entry-modal-title">Eintrag hinzufügen</div>
+    <input type="hidden" id="entry-edit-id" />
+    <div class="form-label">Projekt</div>
+    <select id="entry-proj" style="margin-bottom:12px"></select>
+    <div class="form-label">Datum</div>
+    <input type="date" id="entry-date" style="margin-bottom:12px" />
+    <div class="form-label">Start</div>
+    <input type="time" id="entry-start" style="margin-bottom:12px" />
+    <div class="form-label">Ende</div>
+    <input type="time" id="entry-end" style="margin-bottom:16px" />
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('entry-modal')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveEntry()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLORS = ['#2d5a3d','#5a2d2d','#2d3d5a','#7a5c1e','#5a2d5a','#1e5a50','#5a4a2d','#3d5a2d'];
+
+let state = {
+  projects: [], entries: [], activeSession: null,
+  pendingProject: null, pendingTagId: null, newProjColor: COLORS[0],
+  settings: { weeklyHours: 40, balanceOffsetMin: 0 },
+  weekCorrections: []
+};
+
+function save() { localStorage.setItem('zt2', JSON.stringify(state)); }
+function load() {
+  const d = localStorage.getItem('zt2') || localStorage.getItem('zt_state');
+  if (d) {
+    const s = JSON.parse(d);
+    state = { ...state, ...s };
+    state.settings = { weeklyHours: 40, balanceOffsetMin: 0, ...(s.settings||{}) };
+    state.weekCorrections = s.weekCorrections || [];
+    if (state.activeSession) state.activeSession.start = new Date(state.activeSession.start);
+  }
+  if (!state.projects.length) {
+    state.projects = [
+      { id: uid(), name: 'Büroarbeit', color: COLORS[0], tagId: null },
+      { id: uid(), name: 'Meeting',    color: COLORS[2], tagId: null },
+    ];
+    save();
+  }
+}
+function uid() { return Math.random().toString(36).slice(2,10); }
+
+// ─── TIME HELPERS ─────────────────────────────────────────────────────────
+let timerInterval = null;
+function startTimer() { timerInterval = setInterval(tickElapsed, 1000); tickElapsed(); }
+function stopTimer()  { clearInterval(timerInterval); timerInterval = null; }
+function tickElapsed() {
+  if (!state.activeSession) return;
+  document.getElementById('elapsed').textContent = fmtHMS(Date.now() - new Date(state.activeSession.start).getTime());
+}
+function fmtHMS(ms) {
+  const s = Math.floor(ms/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  return [h,m,sec].map(x=>String(x).padStart(2,'0')).join(':');
+}
+function fmtShort(ms) {
+  const m = Math.round(ms/60000);
+  return m < 60 ? m+'min' : Math.floor(m/60)+'h'+(m%60?' '+(m%60)+'min':'');
+}
+function fmtTime(d)   { return new Date(d).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(d)   { return new Date(d).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}); }
+function fmtISO(d)    { const dt=new Date(d); return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate()); }
+function pad(n)       { return String(n).padStart(2,'0'); }
+function getMon(d)    { const dt=new Date(d); dt.setHours(0,0,0,0); dt.setDate(dt.getDate()-((dt.getDay()+6)%7)); return dt; }
+function isoWeek(d) {
+  const dt = new Date(d); dt.setHours(0,0,0,0);
+  dt.setDate(dt.getDate()+3-((dt.getDay()+6)%7));
+  const w1 = new Date(dt.getFullYear(),0,4);
+  const wn = 1+Math.round(((dt-w1)/86400000-3+(w1.getDay()+6)%7)/7);
+  return dt.getFullYear()+'-W'+pad(wn);
+}
+
+// ─── UI ───────────────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',['scan','log','stats','projects'][i]===id));
+  document.getElementById('page-'+id).classList.add('active');
+  if (id==='log')      renderLog();
+  if (id==='stats')    renderStats();
+  if (id==='projects') renderProjectsPage();
+}
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+function closeModal(id)                     { document.getElementById(id).classList.remove('show'); }
+function closeModalOutside(e,id)            { if(e.target===document.getElementById(id)) closeModal(id); }
+
+// ─── STATUS ───────────────────────────────────────────────────────────────
+function updateStatusUI() {
+  const dot=document.getElementById('status-dot'), proj=document.getElementById('status-project'), time=document.getElementById('status-time');
+  if (state.activeSession) {
+    dot.classList.add('active');
+    document.getElementById('status-text').textContent='Eingestempelt';
+    const p=state.projects.find(x=>x.id===state.activeSession.projectId);
+    proj.textContent=p?p.name:'–';
+    time.textContent='seit '+fmtTime(state.activeSession.start);
+    if(!timerInterval) startTimer();
+  } else {
+    dot.classList.remove('active');
+    document.getElementById('status-text').textContent='Keine aktive Sitzung';
+    proj.textContent='–'; time.textContent='';
+    document.getElementById('elapsed').textContent='00:00:00';
+    stopTimer();
+  }
+  renderQuickProjects();
+}
+
+// ─── NFC ──────────────────────────────────────────────────────────────────
+let nfcScanning=false;
+async function startNFCScan() {
+  if (!('NDEFReader' in window)) { document.getElementById('nfc-warn').classList.add('show'); showToast('NFC nicht verfügbar'); return; }
+  const btn=document.getElementById('nfc-btn');
+  if (nfcScanning) { nfcScanning=false; btn.classList.remove('scanning'); return; }
+  try {
+    const reader=new NDEFReader(); await reader.scan();
+    nfcScanning=true; btn.classList.add('scanning'); showToast('NFC aktiv – Tag scannen');
+    reader.addEventListener('reading',({serialNumber,message})=>{
+      const tagId=serialNumber||(message.records[0]?.data?new TextDecoder().decode(message.records[0].data):uid());
+      nfcScanning=false; btn.classList.remove('scanning'); handleNFCTag(tagId);
+    });
+  } catch(e) { showToast('NFC-Fehler: '+e.message); }
+}
+function handleNFCTag(tagId) {
+  const proj=state.projects.find(p=>p.tagId===tagId);
+  if (state.activeSession) showStopConfirm();
+  else if (proj) showConfirmStart(proj);
+  else { state.pendingTagId=tagId; showToast('Unbekannter Tag – bitte Projekt zuweisen'); showPage('projects'); }
+}
+
+// ─── SESSION ──────────────────────────────────────────────────────────────
+function showConfirmStart(project) {
+  state.pendingProject=project.id;
+  document.getElementById('confirm-project-name').textContent=project.name;
+  document.getElementById('confirm-start').classList.add('show');
+  document.getElementById('confirm-stop').classList.remove('show');
+}
+function showStopConfirm() {
+  const p=state.projects.find(x=>x.id===state.activeSession.projectId);
+  document.getElementById('confirm-stop-name').textContent=p?p.name:'–';
+  document.getElementById('confirm-stop-dur').textContent='Dauer: '+fmtShort(Date.now()-new Date(state.activeSession.start).getTime());
+  document.getElementById('confirm-stop').classList.add('show');
+}
+function cancelConfirm() {
+  document.getElementById('confirm-start').classList.remove('show');
+  document.getElementById('confirm-stop').classList.remove('show');
+  state.pendingProject=null;
+}
+function confirmStart() {
+  if (!state.pendingProject) return;
+  state.activeSession={projectId:state.pendingProject,start:new Date()};
+  state.pendingProject=null;
+  document.getElementById('confirm-start').classList.remove('show');
+  save(); updateStatusUI(); showToast('Eingestempelt ✓');
+}
+function confirmStop() {
+  if (!state.activeSession) return;
+  state.entries.unshift({id:uid(),projectId:state.activeSession.projectId,start:state.activeSession.start,end:new Date(),duration:Date.now()-new Date(state.activeSession.start).getTime()});
+  state.activeSession=null;
+  document.getElementById('confirm-stop').classList.remove('show');
+  save(); updateStatusUI(); showToast('Ausgestempelt ✓');
+}
+function manualStart(projectId) {
+  if (state.activeSession) { showStopConfirm(); return; }
+  const p=state.projects.find(x=>x.id===projectId); if(p) showConfirmStart(p);
+}
+function renderQuickProjects() {
+  const el=document.getElementById('quick-projects'); el.innerHTML='';
+  state.projects.forEach(p=>{
+    const isActive=state.activeSession?.projectId===p.id;
+    const div=document.createElement('div'); div.className='project-item'; div.onclick=()=>manualStart(p.id);
+    div.innerHTML=`<div class="project-color" style="background:${p.color}"></div><div class="project-name">${p.name}</div><div class="project-tag" style="color:${isActive?'var(--accent)':'var(--muted)'}">${isActive?'● aktiv':p.tagId?'✦ nfc':''}</div>`;
+    el.appendChild(div);
+  });
+}
+
+// ─── LOG ──────────────────────────────────────────────────────────────────
+function renderLog() {
+  const el=document.getElementById('log-content');
+  if (!state.entries.length) { el.innerHTML='<div class="empty-state">Noch keine Einträge.<br>Stempel dich ein, um zu starten.</div>'; return; }
+  const groups={};
+  [...state.entries].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e=>{
+    const k=new Date(e.start).toDateString(); if(!groups[k]) groups[k]=[]; groups[k].push(e);
+  });
+  el.innerHTML='';
+  Object.values(groups).forEach(entries=>{
+    const dayTotal=entries.reduce((s,e)=>s+e.duration,0);
+    const week=isoWeek(entries[0].start);
+    const hasCorr=state.weekCorrections.some(c=>c.week===week);
+    const div=document.createElement('div'); div.className='day-group';
+    div.innerHTML=`<div class="day-header"><span>${fmtDate(entries[0].start)}</span>${hasCorr?`<span class="day-corr-badge" onclick="openSettings()">⚠ Korrektur</span>`:''}<span>${fmtShort(dayTotal)}</span></div>`;
+    entries.forEach(e=>{
+      const p=state.projects.find(x=>x.id===e.projectId);
+      const row=document.createElement('div'); row.className='entry-item';
+      row.innerHTML=`
+        <div class="entry-dot" style="background:${p?p.color:'var(--muted)'}"></div>
+        <div class="entry-info">
+          <div class="entry-project">${p?p.name:'Unbekannt'}</div>
+          <div class="entry-times">${fmtTime(e.start)} → ${fmtTime(e.end)}</div>
+        </div>
+        <div class="entry-dur">${fmtShort(e.duration)}</div>
+        <div class="entry-actions">
+          <button class="entry-btn" onclick="openEditEntry('${e.id}')" title="Bearbeiten">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="entry-btn" onclick="deleteEntry('${e.id}')" title="Löschen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>`;
+      div.appendChild(row);
+    });
+    el.appendChild(div);
+  });
+}
+function deleteEntry(id) { state.entries=state.entries.filter(e=>e.id!==id); save(); renderLog(); showToast('Eintrag gelöscht'); }
+
+// ─── ENTRY MODAL ──────────────────────────────────────────────────────────
+function fillProjectSelect(selId) {
+  const sel=document.getElementById('entry-proj'); sel.innerHTML='';
+  state.projects.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; if(p.id===selId) o.selected=true; sel.appendChild(o); });
+}
+function openAddEntry() {
+  document.getElementById('entry-modal-title').textContent='Eintrag hinzufügen';
+  document.getElementById('entry-edit-id').value='';
+  fillProjectSelect(state.projects[0]?.id);
+  document.getElementById('entry-date').value=fmtISO(new Date());
+  document.getElementById('entry-start').value='09:00';
+  document.getElementById('entry-end').value='17:00';
+  document.getElementById('entry-modal').classList.add('show');
+}
+function openEditEntry(id) {
+  const e=state.entries.find(x=>x.id===id); if(!e) return;
+  document.getElementById('entry-modal-title').textContent='Eintrag bearbeiten';
+  document.getElementById('entry-edit-id').value=id;
+  fillProjectSelect(e.projectId);
+  document.getElementById('entry-date').value=fmtISO(e.start);
+  document.getElementById('entry-start').value=fmtTime(e.start);
+  document.getElementById('entry-end').value=fmtTime(e.end);
+  document.getElementById('entry-modal').classList.add('show');
+}
+function saveEntry() {
+  const projectId=document.getElementById('entry-proj').value;
+  const date=document.getElementById('entry-date').value;
+  const startT=document.getElementById('entry-start').value;
+  const endT=document.getElementById('entry-end').value;
+  if (!date||!startT||!endT) { showToast('Bitte alle Felder ausfüllen'); return; }
+  const start=new Date(date+'T'+startT), end=new Date(date+'T'+endT);
+  if (end<=start) { showToast('Ende muss nach Start liegen'); return; }
+  const editId=document.getElementById('entry-edit-id').value;
+  if (editId) {
+    const i=state.entries.findIndex(e=>e.id===editId);
+    if(i>=0) state.entries[i]={...state.entries[i],projectId,start,end,duration:end-start};
+  } else {
+    state.entries.unshift({id:uid(),projectId,start,end,duration:end-start});
+  }
+  closeModal('entry-modal'); save(); renderLog();
+  showToast(editId?'Eintrag gespeichert ✓':'Eintrag hinzugefügt ✓');
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('setting-weekly-hours').value=state.settings.weeklyHours;
+  document.getElementById('setting-balance-offset').value=state.settings.balanceOffsetMin;
+  document.getElementById('corr-week').value=isoWeek(new Date());
+  document.getElementById('corr-hours').value='';
+  renderCorrList();
+  document.getElementById('settings-modal').classList.add('show');
+}
+function saveSettings() {
+  state.settings.weeklyHours=Math.max(1,Math.min(80,parseFloat(document.getElementById('setting-weekly-hours').value)||40));
+  state.settings.balanceOffsetMin=parseInt(document.getElementById('setting-balance-offset').value)||0;
+  save(); closeModal('settings-modal'); renderStats(); showToast('Gespeichert ✓');
+}
+function renderCorrList() {
+  const el=document.getElementById('corr-list');
+  if (!state.weekCorrections.length) { el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:4px 0 8px">Noch keine Korrekturen.</div>'; return; }
+  const labels={urlaub:'Urlaub',feiertag:'Feiertag',krank:'Krank',sonstige:'Sonstiges'};
+  el.innerHTML='';
+  [...state.weekCorrections].sort((a,b)=>b.week>a.week?1:-1).forEach(c=>{
+    const div=document.createElement('div'); div.className='corr-item';
+    div.innerHTML=`<span class="corr-week">${c.week}</span><span class="corr-type type-${c.type}">${labels[c.type]||c.type}</span><span class="corr-hours">−${c.hours}h</span><button class="entry-btn" onclick="deleteCorr('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`;
+    el.appendChild(div);
+  });
+}
+function addWeekCorr() {
+  const week=document.getElementById('corr-week').value.trim();
+  const type=document.getElementById('corr-type').value;
+  const hours=parseFloat(document.getElementById('corr-hours').value);
+  if (!week||!hours||hours<=0) { showToast('Bitte KW und Stunden angeben'); return; }
+  if (!/^\d{4}-W\d{2}$/.test(week)) { showToast('Format: JJJJ-WKW (z.B. 2025-W03)'); return; }
+  state.weekCorrections.push({id:uid(),week,type,hours});
+  save(); renderCorrList(); document.getElementById('corr-hours').value='';
+  showToast('Korrektur hinzugefügt ✓');
+}
+function deleteCorr(id) { state.weekCorrections=state.weekCorrections.filter(c=>c.id!==id); save(); renderCorrList(); showToast('Korrektur entfernt'); }
+
+// ─── BALANCE ──────────────────────────────────────────────────────────────
+function calcBalance() {
+  const weeklyMs=state.settings.weeklyHours*3600000;
+  const totalWorkedMs=state.entries.reduce((s,e)=>s+e.duration,0);
+  if (!state.entries.length) return state.settings.balanceOffsetMin*60000;
+  const sorted=[...state.entries].sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const firstMon=getMon(sorted[0].start), thisMon=getMon(new Date());
+  const completeWeeks=Math.max(0,Math.round((thisMon-firstMon)/(7*24*3600000)));
+  const todayDow=(new Date().getDay()+6)%7;
+  const currentWeekExpectedMs=(Math.min(todayDow,4)+1)*(weeklyMs/5);
+  const corrMs=state.weekCorrections.reduce((s,c)=>s+c.hours*3600000,0);
+  const expectedMs=completeWeeks*weeklyMs+currentWeekExpectedMs-corrMs;
+  return totalWorkedMs-expectedMs+(state.settings.balanceOffsetMin*60000);
+}
+function fmtBalance(ms) {
+  const abs=Math.abs(ms);
+  return `${ms>=0?'+':'−'}${Math.floor(abs/3600000)}h ${Math.floor((abs%3600000)/60000)}min`;
+}
+
+// ─── STATS ────────────────────────────────────────────────────────────────
+function renderStats() {
+  const balMs=calcBalance();
+  const balEl=document.getElementById('balance-value');
+  balEl.textContent=fmtBalance(balMs);
+  balEl.className='balance-value '+(balMs>60000?'positive':balMs<-60000?'negative':'neutral');
+  document.getElementById('balance-sub').textContent=`Soll: ${state.settings.weeklyHours}h/Woche · Startsaldo: ${state.settings.balanceOffsetMin>=0?'+':''}${state.settings.balanceOffsetMin} min`;
+
+  const now=new Date(), mon=getMon(now), sun=new Date(mon); sun.setDate(mon.getDate()+7);
+  const weekEntries=state.entries.filter(e=>new Date(e.start)>=mon&&new Date(e.start)<sun);
+  const days=['Mo','Di','Mi','Do','Fr','Sa','So'], dayMs=Array(7).fill(0);
+  weekEntries.forEach(e=>{ dayMs[(new Date(e.start).getDay()+6)%7]+=e.duration; });
+  const maxMs=Math.max(...dayMs,1), todayDow=(now.getDay()+6)%7;
+  const grid=document.getElementById('week-grid'); grid.innerHTML='';
+  days.forEach((label,i)=>{
+    const h=Math.round(dayMs[i]/360000)/10, pct=Math.round((dayMs[i]/maxMs)*100);
+    grid.innerHTML+=`<div class="week-day"><div class="week-label">${label}</div><div class="week-bar-wrap"><div class="week-bar ${i===todayDow?'today':''}" style="height:${Math.max(pct,2)}%"></div></div><div class="week-hours">${h>0?h+'h':''}</div></div>`;
+  });
+
+  const weekTotal=weekEntries.reduce((s,e)=>s+e.duration,0);
+  const todayTotal=state.entries.filter(e=>new Date(e.start).toDateString()===now.toDateString()).reduce((s,e)=>s+e.duration,0);
+  const allTotal=state.entries.reduce((s,e)=>s+e.duration,0);
+  const thisWeek=isoWeek(now);
+  const thisWeekCorrMs=state.weekCorrections.filter(c=>c.week===thisWeek).reduce((s,c)=>s+c.hours*3600000,0);
+  const adjTargetMs=state.settings.weeklyHours*3600000-thisWeekCorrMs;
+  const weekDiff=weekTotal-adjTargetMs;
+  const wdColor=weekDiff>=0?'var(--accent)':'var(--danger)';
+  const wdStr=(weekDiff>=0?'+':'−')+fmtShort(Math.abs(weekDiff));
+  document.getElementById('summary-rows').innerHTML=`
+    <div class="summary-row"><span class="summary-label">Heute</span><span class="summary-val">${fmtShort(todayTotal)||'0 min'}</span></div>
+    <div class="summary-row"><span class="summary-label">Diese Woche</span><span class="summary-val">${fmtShort(weekTotal)||'0 min'} <span style="color:${wdColor};font-size:11px">${wdStr}</span></span></div>
+    <div class="summary-row"><span class="summary-label">Wochensoll${thisWeekCorrMs>0?' (korrigiert)':''}</span><span class="summary-val">${fmtShort(adjTargetMs)}</span></div>
+    <div class="summary-row"><span class="summary-label">Gesamt</span><span class="summary-val">${fmtShort(allTotal)||'0 min'}</span></div>
+  `;
+
+  const projMs={};
+  weekEntries.forEach(e=>{projMs[e.projectId]=(projMs[e.projectId]||0)+e.duration;});
+  const bd=document.getElementById('project-breakdown');
+  if (!Object.keys(projMs).length) { bd.innerHTML='<div style="color:var(--muted);font-size:12px">Keine Daten diese Woche</div>'; return; }
+  bd.innerHTML='';
+  Object.entries(projMs).sort((a,b)=>b[1]-a[1]).forEach(([pid,ms])=>{
+    const p=state.projects.find(x=>x.id===pid), pct=Math.round((ms/weekTotal)*100);
+    bd.innerHTML+=`<div class="proj-bar-item"><div class="proj-bar-header"><span>${p?p.name:'Unbekannt'}</span><span style="color:var(--muted)">${fmtShort(ms)} · ${pct}%</span></div><div class="proj-bar-track"><div class="proj-bar-fill" style="width:${pct}%;background:${p?p.color:'var(--muted)'}"></div></div></div>`;
+  });
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────
+function toCSV(entries) {
+  const rows=[['Datum','KW','Projekt','Start','Ende','Dauer (min)']];
+  [...entries].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e=>{
+    const p=state.projects.find(x=>x.id===e.projectId);
+    rows.push([new Date(e.start).toLocaleDateString('de-DE'),isoWeek(e.start),p?p.name:'Unbekannt',fmtTime(e.start),fmtTime(e.end),Math.round(e.duration/60000)]);
+  });
+  return rows.map(r=>r.join(';')).join('\n');
+}
+function dl(content,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8'})); a.download=name; a.click(); }
+function exportCSV()    { const mon=getMon(new Date()),sun=new Date(mon);sun.setDate(mon.getDate()+7); dl(toCSV(state.entries.filter(e=>new Date(e.start)>=mon&&new Date(e.start)<sun)),'zeiterfassung_woche.csv'); }
+function exportCSVAll() { dl(toCSV(state.entries),'zeiterfassung_alle.csv'); }
+
+// ─── PROJECTS ─────────────────────────────────────────────────────────────
+function renderProjectsPage() {
+  const el=document.getElementById('projects-list'); el.innerHTML='';
+  state.projects.forEach(p=>{
+    const div=document.createElement('div'); div.className='project-item';
+    div.innerHTML=`<div class="project-color" style="background:${p.color}"></div><div class="project-name">${p.name}</div><div class="project-tag">${p.tagId?'✦ NFC':'kein Tag'}</div><div style="display:flex;gap:4px"><button class="icon-btn" onclick="deleteProject('${p.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>`;
+    el.appendChild(div);
+  });
+}
+function deleteProject(id) { state.projects=state.projects.filter(p=>p.id!==id); save(); renderProjectsPage(); renderQuickProjects(); showToast('Projekt gelöscht'); }
+function toggleAddForm() {
+  const f=document.getElementById('add-form'); f.classList.toggle('show');
+  document.getElementById('new-proj-name').value='';
+  document.getElementById('nfc-tag-manual').value='';
+  document.getElementById('nfc-tag-status').textContent='';
+  state.pendingTagId=null; renderColorOptions();
+}
+function renderColorOptions() {
+  const el=document.getElementById('color-options'); el.innerHTML='';
+  COLORS.forEach(c=>{ const d=document.createElement('div'); d.className='color-opt'+(c===state.newProjColor?' selected':''); d.style.background=c; d.onclick=()=>{state.newProjColor=c;renderColorOptions();}; el.appendChild(d); });
+}
+async function linkNFCTag() {
+  const statusEl=document.getElementById('nfc-tag-status'), mi=document.getElementById('nfc-tag-manual');
+  if (!('NDEFReader' in window)) { statusEl.textContent='⚠ NFC nicht verfügbar. ID manuell eingeben.'; mi.focus(); return; }
+  const btn=document.getElementById('link-nfc-btn'); btn.textContent='⏳'; statusEl.textContent='Warte auf Tag…';
+  try {
+    const reader=new NDEFReader(); await reader.scan();
+    reader.addEventListener('reading',({serialNumber})=>{ state.pendingTagId=serialNumber; mi.value=serialNumber; statusEl.textContent='✓ Tag erkannt'; btn.textContent='📡 Scan'; showToast('Tag erkannt ✓'); },{once:true});
+  } catch(e) { statusEl.textContent='⚠ Berechtigung verweigert – HTTPS/localhost nötig.'; btn.textContent='📡 Scan'; }
+}
+function saveProject() {
+  const name=document.getElementById('new-proj-name').value.trim(); if(!name){showToast('Bitte Namen eingeben');return;}
+  const tagId=state.pendingTagId||document.getElementById('nfc-tag-manual').value.trim()||null;
+  state.projects.push({id:uid(),name,color:state.newProjColor,tagId});
+  state.pendingTagId=null; save(); toggleAddForm(); renderProjectsPage(); renderQuickProjects(); showToast('Projekt gespeichert ✓');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+load(); renderColorOptions(); updateStatusUI();
+if (!('NDEFReader' in window)) document.getElementById('nfc-warn').classList.add('show');
+</script>
+</body>
+</html>
