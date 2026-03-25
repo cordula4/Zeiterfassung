@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#f7f5f2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Zeiterfassung</title>
+<style>
+  :root {
+    --bg: #f7f5f2;
+    --surface: #ffffff;
+    --border: #e2ddd8;
+    --border2: #ccc7c0;
+    --text: #1c1917;
+    --muted: #78716c;
+    --accent: #1d4ed8;
+    --accent-light: #eff6ff;
+    --accent-border: #bfdbfe;
+    --danger: #b91c1c;
+    --danger-light: #fef2f2;
+    --success: #15803d;
+    --success-light: #f0fdf4;
+    --warn: #92400e;
+    --warn-light: #fffbeb;
+    --warn-border: #fcd34d;
+    --radius: 10px;
+    --font: 'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.55; }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  header .header-sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
+
+  /* ── MAIN NAV ── */
+  .main-nav {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .main-nav::-webkit-scrollbar { display: none; }
+  .main-nav button {
+    flex-shrink: 0;
+    padding: 12px 18px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+  .main-nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .main-nav button.add-proj-btn {
+    color: var(--accent);
+    font-weight: 600;
+    padding-left: 14px;
+    padding-right: 20px;
+  }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 20px; max-width: 600px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* ── SECTION HEADINGS ── */
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 24px 0 10px;
+  }
+  .section-title:first-child { margin-top: 4px; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+
+  /* ── BALANCE CARD ── */
+  .balance-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .balance-value {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin: 4px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .balance-value.pos { color: var(--success); }
+  .balance-value.neg { color: var(--danger); }
+  .balance-value.neu { color: var(--text); }
+  .balance-meta { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* ── STATUS CARD ── */
+  .status-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  .status-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 7px; background: var(--muted); vertical-align: middle; }
+  .status-dot.active { background: var(--success); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.35} }
+  .status-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .status-project { font-size: 22px; font-weight: 700; margin-bottom: 3px; }
+  .status-since { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+  .elapsed { font-size: 42px; font-weight: 300; font-variant-numeric: tabular-nums; letter-spacing: -2px; margin-bottom: 18px; }
+
+  /* ── STAMP BUTTON ── */
+  .stamp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 28px;
+    border-radius: 50px;
+    border: none;
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .stamp-btn.in  { background: var(--accent); color: white; }
+  .stamp-btn.out { background: var(--danger); color: white; }
+  .stamp-btn:active { transform: scale(0.96); }
+
+  /* ── CONFIRM PANEL ── */
+  .confirm-panel { border-radius: var(--radius); padding: 18px; margin-bottom: 12px; display: none; }
+  .confirm-panel.show { display: block; }
+  .confirm-panel.start { background: var(--accent-light); border: 1px solid var(--accent-border); }
+  .confirm-panel.stop  { background: var(--danger-light); border: 1px solid #fecaca; }
+  .confirm-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+  .confirm-name  { font-size: 18px; font-weight: 700; margin-bottom: 14px; }
+  .confirm-row   { display: flex; gap: 8px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border);
+    font-family: var(--font); font-size: 14px; font-weight: 500;
+    cursor: pointer; background: var(--surface); color: var(--text);
+    transition: background 0.12s; flex: 1;
+  }
+  .btn:active { background: var(--bg); }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:active { background: #1e40af; }
+  .btn-danger  { background: var(--danger); color: white; border-color: var(--danger); }
+  .btn-ghost   { background: none; border: none; color: var(--muted); font-size: 13px; padding: 8px 12px; }
+  .btn-full    { width: 100%; }
+
+  /* ── FORM ELEMENTS ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 13px; font-weight: 600; color: var(--text); display: block; margin-bottom: 5px; }
+  .form-hint  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  input[type=text], input[type=date], input[type=time], input[type=number], select, textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: var(--font); font-size: 15px; background: var(--bg); color: var(--text);
+    outline: none; -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(29,78,216,0.1); }
+  .input-row { display: flex; gap: 8px; }
+  .input-row > * { flex: 1; }
+
+  /* ── PROJECT QUICK SELECT ── */
+  .proj-btn-list { display: flex; flex-direction: column; gap: 8px; }
+  .proj-btn-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 13px 16px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .proj-btn-item:active { border-color: var(--accent); }
+  .proj-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .proj-btn-name { flex: 1; font-size: 15px; font-weight: 500; }
+  .proj-btn-meta { font-size: 12px; color: var(--muted); }
+
+  /* ── LOG ── */
+  .day-group { margin-bottom: 20px; }
+  .day-header {
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); padding: 6px 0 6px; border-bottom: 1px solid var(--border);
+    margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .corr-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--warn-light); color: var(--warn); border: 1px solid var(--warn-border); cursor: pointer; }
+  .entry-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 11px 13px; margin-bottom: 5px;
+  }
+  .entry-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .entry-info { flex: 1; min-width: 0; }
+  .entry-proj { font-size: 14px; font-weight: 500; }
+  .entry-time { font-size: 12px; color: var(--muted); }
+  .entry-dur  { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .entry-acts { display: flex; gap: 2px; }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 6px; border: none; background: none;
+    color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:active { background: var(--border); }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  /* ── STATS ── */
+  .week-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 16px; }
+  .wday { text-align: center; }
+  .wday-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; font-weight: 600; }
+  .wbar-wrap { height: 56px; display: flex; align-items: flex-end; justify-content: center; }
+  .wbar { width: 26px; border-radius: 4px 4px 0 0; background: var(--border); min-height: 2px; }
+  .wbar.today { background: var(--accent); }
+  .wday-h { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; }
+  .stat-label { font-size: 14px; color: var(--muted); }
+  .stat-val   { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .proj-bar-item { margin-bottom: 10px; }
+  .proj-bar-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .proj-bar-track { height: 7px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .proj-bar-fill  { height: 100%; border-radius: 4px; }
+
+  /* ── CORR LIST ── */
+  .corr-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .corr-item { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; }
+  .corr-week { flex: 1; font-weight: 500; }
+  .corr-type-badge { padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .t-urlaub   { background: #dbeafe; color: #1e40af; }
+  .t-feiertag { background: #ede9fe; color: #5b21b6; }
+  .t-krank    { background: var(--danger-light); color: var(--danger); }
+  .t-sonstige { background: var(--warn-light); color: var(--warn); }
+  .corr-h { color: var(--muted); flex-shrink: 0; }
+
+  /* ── COLOR PICKER ── */
+  .color-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .color-dot { width: 28px; height: 28px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: transform 0.15s; }
+  .color-dot.sel { border-color: var(--text); transform: scale(1.15); }
+
+  /* ── PROJECT SETTINGS PAGE ── */
+  .proj-settings-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+  }
+  .proj-color-pill { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-end; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border-radius: 16px 16px 0 0; padding: 24px 20px 44px; width: 100%; max-width: 520px; transform: translateY(16px); transition: transform 0.2s; max-height: 92vh; overflow-y: auto; }
+  .modal-overlay.show .modal { transform: translateY(0); }
+  .modal-title { font-size: 19px; font-weight: 700; margin-bottom: 18px; }
+  .modal-sep { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 20px 0 12px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
+
+  /* ── EXPORT ── */
+  .export-btn { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-family: var(--font); font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text); margin-bottom: 8px; text-align: left; display: flex; align-items: center; gap: 8px; }
+  .export-btn:active { background: var(--bg); }
+
+  /* ── MISC ── */
+  .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 14px; line-height: 2; }
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(16px); background: #1c1917; color: white; padding: 10px 22px; border-radius: 20px; font-size: 14px; opacity: 0; transition: all 0.2s; pointer-events: none; z-index: 400; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Zeiterfassung</h1>
+    <div class="header-sub" id="header-sub">Kein aktives Projekt</div>
+  </div>
+  <button class="btn btn-ghost" onclick="openGlobalSettings()" style="flex:none;padding:8px 10px">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+  </button>
+</header>
+
+<!-- PROJECT TABS -->
+<div class="main-nav" id="main-nav"></div>
+
+<!-- PAGES rendered dynamically per project + overview -->
+<div id="pages-container"></div>
+
+<!-- OVERVIEW PAGE (no project selected) -->
+<div class="page active" id="page-overview">
+  <div class="empty-state">
+    Noch kein Projekt angelegt.<br>
+    Tippe auf <strong>+ Projekt</strong> um zu starten.
+  </div>
+</div>
+
+<!-- LOG PAGE -->
+<div class="page" id="page-log">
+  <button class="btn btn-primary btn-full" style="margin-bottom:16px" onclick="openAddEntry()">+ Eintrag hinzufügen</button>
+  <div id="log-content"></div>
+</div>
+
+<!-- STATS PAGE -->
+<div class="page" id="page-stats">
+  <div id="stats-content"></div>
+</div>
+
+<!-- ═══ MODALS ═══════════════════════════════════════════════════════════ -->
+
+<!-- ADD PROJECT MODAL -->
+<div class="modal-overlay" id="modal-add-proj" onclick="closeOutside(event,'modal-add-proj')">
+  <div class="modal">
+    <div class="modal-title">Neues Projekt</div>
+    <div class="form-group">
+      <label class="form-label">Projektname</label>
+      <input type="text" id="np-name" placeholder="z.B. Hauptjob, Nebenjob…" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Farbe</label>
+      <div class="color-row" id="np-colors"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Wochensoll (Stunden)</label>
+      <input type="number" id="np-hours" min="1" max="80" step="0.5" value="40" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Arbeitstage pro Woche</label>
+      <input type="number" id="np-days" min="1" max="7" step="1" value="5" />
+      <div class="form-hint">Wird für die tagesanteilige Balance-Berechnung verwendet.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-add-proj')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveNewProject()">Projekt anlegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECT SETTINGS MODAL -->
+<div class="modal-overlay" id="modal-proj-settings" onclick="closeOutside(event,'modal-proj-settings')">
+  <div class="modal">
+    <div class="modal-title">Projekteinstellungen</div>
+    <input type="hidden" id="ps-id" />
+    <div class="form-group">
+      <label class="form-label">Projektname</label>
+      <input type="text" id="ps-name" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Farbe</label>
+      <div class="color-row" id="ps-colors"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Wochensoll (Stunden)</label>
+      <input type="number" id="ps-hours" min="1" max="80" step="0.5" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Arbeitstage pro Woche</label>
+      <input type="number" id="ps-days" min="1" max="7" step="1" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Startsaldo (Minuten)</label>
+      <input type="number" id="ps-offset" min="-9999" max="9999" step="1" />
+      <div class="form-hint">Positiv = Überstunden, negativ = Minusstunden beim Start der Aufzeichnung.</div>
+    </div>
+
+    <div class="modal-sep">Wochenkorrekturen (Urlaub · Feiertag · Krankheit)</div>
+    <div class="form-hint" style="margin-bottom:12px">Trage Kalenderwochen ein, in denen das Wochensoll reduziert wird.</div>
+    <div class="corr-list" id="ps-corr-list"></div>
+    <div class="form-group">
+      <label class="form-label">Kalenderwoche</label>
+      <input type="text" id="ps-corr-week" placeholder="z.B. 2025-W03" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Typ</label>
+      <select id="ps-corr-type">
+        <option value="urlaub">Urlaub</option>
+        <option value="feiertag">Feiertag</option>
+        <option value="krank">Krankheit</option>
+        <option value="sonstige">Sonstiges</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Stunden reduzieren um</label>
+      <div class="input-row" style="align-items:center">
+        <input type="number" id="ps-corr-hours" min="0.5" max="40" step="0.5" placeholder="z.B. 8" />
+        <span style="font-size:14px;color:var(--muted);flex:none;padding:0 6px">Stunden</span>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="addCorr()" style="margin-bottom:8px">+ Korrektur hinzufügen</button>
+
+    <div class="divider"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-danger" onclick="deleteCurrentProject()" style="flex:none;padding:10px 14px">Projekt löschen</button>
+      <div style="flex:1"></div>
+      <button class="btn" onclick="closeModal('modal-proj-settings')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveProjSettings()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENTRY ADD/EDIT MODAL -->
+<div class="modal-overlay" id="modal-entry" onclick="closeOutside(event,'modal-entry')">
+  <div class="modal">
+    <div class="modal-title" id="entry-modal-title">Eintrag hinzufügen</div>
+    <input type="hidden" id="em-id" />
+    <div class="form-group">
+      <label class="form-label">Projekt</label>
+      <select id="em-proj"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Datum</label>
+      <input type="date" id="em-date" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Start</label>
+      <input type="time" id="em-start" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ende</label>
+      <input type="time" id="em-end" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-entry')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveEntry()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- STOP CONFIRM MODAL -->
+<div class="modal-overlay" id="modal-stop" onclick="closeOutside(event,'modal-stop')">
+  <div class="modal">
+    <div class="modal-title">Ausstempeln?</div>
+    <div id="stop-info" style="font-size:15px;color:var(--muted);margin-bottom:20px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-stop')">Abbrechen</button>
+      <button class="btn btn-danger" onclick="confirmStop()">Ausstempeln ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- GLOBAL SETTINGS MODAL (overview balance etc.) -->
+<div class="modal-overlay" id="modal-global" onclick="closeOutside(event,'modal-global')">
+  <div class="modal">
+    <div class="modal-title">Gesamtübersicht</div>
+    <div id="global-stats-content"></div>
+    <div class="modal-sep">Export</div>
+    <button class="export-btn" onclick="exportAll()">↓ Alle Einträge als CSV</button>
+    <button class="export-btn" onclick="exportWeek()">↓ Diese Woche als CSV</button>
+    <div class="modal-actions">
+      <button class="btn btn-primary btn-full" onclick="closeModal('modal-global')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════
+const COLORS = ['#1d4ed8','#b91c1c','#15803d','#92400e','#7c3aed','#0e7490','#be185d','#374151'];
+const PROJ_PAGES = ['stempel','eintraege','auswertung'];
+
+let S = {
+  projects: [],   // { id, name, color, weeklyHours, workDays, balanceOffsetMin, corrections:[] }
+  entries:  [],   // { id, projectId, start, end, duration }
+  active:   null, // { projectId, start }
+  newProjColor: COLORS[0],
+  editProjColor: COLORS[0]
+};
+
+function save() { localStorage.setItem('zt3', JSON.stringify(S)); }
+function load() {
+  const raw = localStorage.getItem('zt3') || localStorage.getItem('zt2') || localStorage.getItem('zt_state');
+  if (!raw) return;
+  try {
+    const d = JSON.parse(raw);
+    // Migrate old format
+    if (d.projects && d.projects.length && !d.projects[0].workDays) {
+      // Old format had global settings – migrate to one project
+      d.projects = d.projects.map(p => ({
+        ...p,
+        weeklyHours: d.settings?.weeklyHours || 40,
+        workDays: 5,
+        balanceOffsetMin: d.settings?.balanceOffsetMin || 0,
+        corrections: d.weekCorrections || []
+      }));
+    }
+    S.projects = d.projects || [];
+    S.entries  = d.entries  || [];
+    S.active   = d.active   || null;
+    if (S.active) S.active.start = new Date(S.active.start);
+  } catch(e) {}
+}
+
+function uid() { return Math.random().toString(36).slice(2,10); }
+
+// ═══════════════════════════════════════════════════════════════════
+// TIME HELPERS
+// ═══════════════════════════════════════════════════════════════════
+let timerInt = null;
+function startTimer() { timerInt = setInterval(tickTimer, 1000); tickTimer(); }
+function stopTimer()  { clearInterval(timerInt); timerInt = null; }
+function tickTimer() {
+  if (!S.active) return;
+  const el = document.getElementById('elapsed-display');
+  if (el) el.textContent = fmtHMS(Date.now() - new Date(S.active.start).getTime());
+}
+
+function fmtHMS(ms) {
+  const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  return [h,m,sec].map(x=>String(x).padStart(2,'0')).join(':');
+}
+function fmtShort(ms) {
+  if (ms < 0) return '0 min';
+  const m = Math.round(ms/60000);
+  return m < 60 ? m+'min' : Math.floor(m/60)+'h'+(m%60?' '+(m%60)+'min':'');
+}
+function fmtTime(d)   { return new Date(d).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(d)   { return new Date(d).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}); }
+function fmtDateISO(d){ const dt=new Date(d); return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate()); }
+function pad(n)       { return String(n).padStart(2,'0'); }
+function getMon(d)    { const dt=new Date(d); dt.setHours(0,0,0,0); dt.setDate(dt.getDate()-((dt.getDay()+6)%7)); return dt; }
+function isoWeek(d) {
+  const dt=new Date(d); dt.setHours(0,0,0,0); dt.setDate(dt.getDate()+3-((dt.getDay()+6)%7));
+  const w1=new Date(dt.getFullYear(),0,4);
+  return dt.getFullYear()+'-W'+pad(1+Math.round(((dt-w1)/86400000-3+(w1.getDay()+6)%7)/7));
+}
+function fmtBalance(ms) {
+  const abs=Math.abs(ms), sign=ms>=0?'+':'−';
+  return `${sign}${Math.floor(abs/3600000)}h ${Math.floor((abs%3600000)/60000)}min`;
+}
+function balClass(ms) { return ms>60000?'pos':ms<-60000?'neg':'neu'; }
+
+// ═══════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+function closeModal(id)          { document.getElementById(id).classList.remove('show'); }
+function closeOutside(e,id)      { if(e.target===document.getElementById(id)) closeModal(id); }
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+let currentProjectId = null;
+let currentSubPage   = 'stempel'; // stempel | eintraege | auswertung
+
+function buildNav() {
+  const nav = document.getElementById('main-nav');
+  nav.innerHTML = '';
+  S.projects.forEach(p => {
+    const btn = document.createElement('button');
+    btn.textContent = p.name;
+    btn.dataset.pid = p.id;
+    btn.onclick = () => selectProject(p.id);
+    if (p.id === currentProjectId) btn.classList.add('active');
+    nav.appendChild(btn);
+  });
+  // Add project button
+  const add = document.createElement('button');
+  add.textContent = '+ Projekt';
+  add.className = 'add-proj-btn';
+  add.onclick = openAddProject;
+  nav.appendChild(add);
+}
+
+function selectProject(pid, sub) {
+  currentProjectId = pid;
+  currentSubPage = sub || 'stempel';
+  buildNav();
+  renderProjectView();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PROJECT VIEW (3 sub-tabs per project)
+// ═══════════════════════════════════════════════════════════════════
+function renderProjectView() {
+  // Hide all generic pages
+  document.getElementById('page-overview').classList.remove('active');
+  document.getElementById('page-log').classList.remove('active');
+  document.getElementById('page-stats').classList.remove('active');
+
+  const container = document.getElementById('pages-container');
+  container.innerHTML = '';
+
+  const p = S.projects.find(x=>x.id===currentProjectId);
+  if (!p) return;
+
+  // Sub-nav
+  const subNav = document.createElement('div');
+  subNav.style.cssText = 'display:flex;background:#fff;border-bottom:1px solid var(--border);';
+  ['Stempeln','Einträge','Auswertung'].forEach((label,i) => {
+    const sub = ['stempel','eintraege','auswertung'][i];
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = `flex:1;padding:11px 8px;background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:var(--font);font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;`;
+    if (sub === currentSubPage) { btn.style.color='var(--text)'; btn.style.borderBottomColor='var(--text)'; }
+    btn.onclick = () => { currentSubPage=sub; renderProjectView(); };
+    subNav.appendChild(btn);
+  });
+  container.appendChild(subNav);
+
+  // Content area
+  const content = document.createElement('div');
+  content.style.cssText = 'padding:20px;max-width:600px;margin:0 auto;';
+  container.appendChild(content);
+
+  if (currentSubPage === 'stempel')   renderStempelTab(p, content);
+  if (currentSubPage === 'eintraege') renderEintraegeTab(p, content);
+  if (currentSubPage === 'auswertung') renderAuswertungTab(p, content);
+}
+
+// ── STEMPEL TAB ──────────────────────────────────────────────────
+function renderStempelTab(p, el) {
+  const isActive = S.active?.projectId === p.id;
+  const otherActive = S.active && S.active.projectId !== p.id;
+  const ap = otherActive ? S.projects.find(x=>x.id===S.active.projectId) : null;
+
+  // Balance mini card
+  const balMs = calcBalance(p);
+  el.innerHTML = `
+    <div class="balance-card" style="margin-bottom:16px">
+      <div>
+        <div class="card-title">Balance</div>
+        <div class="balance-value ${balClass(balMs)}">${fmtBalance(balMs)}</div>
+        <div class="balance-meta">Soll: ${p.weeklyHours}h / ${p.workDays} Tage pro Woche</div>
+      </div>
+      <button class="btn" style="flex:none;font-size:13px" onclick="openProjSettings('${p.id}')">⚙ Einstellungen</button>
+    </div>`;
+
+  // Status card
+  const statusCard = document.createElement('div');
+  statusCard.className = 'status-card';
+  if (isActive) {
+    const since = fmtTime(S.active.start);
+    statusCard.innerHTML = `
+      <div class="status-label"><span class="status-dot active"></span>Eingestempelt</div>
+      <div class="status-project">${p.name}</div>
+      <div class="status-since">seit ${since}</div>
+      <div class="elapsed" id="elapsed-display">00:00:00</div>
+      <button class="stamp-btn out" onclick="openStopConfirm()">⏹ Ausstempeln</button>`;
+    if (!timerInt) startTimer();
+  } else if (otherActive) {
+    statusCard.innerHTML = `
+      <div class="status-label"><span class="status-dot active"></span>Anderes Projekt aktiv</div>
+      <div class="status-project">${ap ? ap.name : '–'}</div>
+      <div class="status-since" style="margin-bottom:14px">Zuerst ausstempeln</div>
+      <button class="stamp-btn out" onclick="openStopConfirm()">⏹ Ausstempeln</button>`;
+  } else {
+    statusCard.innerHTML = `
+      <div class="status-label"><span class="status-dot"></span>Bereit</div>
+      <div class="status-project" style="color:var(--muted);font-weight:400">Nicht eingestempelt</div>
+      <div style="margin:18px 0">
+        <button class="stamp-btn in" onclick="stampIn('${p.id}')">▶ Einstempeln</button>
+      </div>`;
+    stopTimer();
+  }
+  el.appendChild(statusCard);
+
+  // Today summary
+  const todayMs = S.entries.filter(e=>e.projectId===p.id && new Date(e.start).toDateString()===new Date().toDateString()).reduce((s,e)=>s+e.duration,0);
+  if (todayMs > 0) {
+    const tod = document.createElement('div');
+    tod.className = 'stat-row';
+    tod.innerHTML = `<span class="stat-label">Heute gearbeitet</span><span class="stat-val">${fmtShort(todayMs)}</span>`;
+    el.appendChild(tod);
+  }
+
+  // Update header
+  updateHeader();
+}
+
+// ── EINTRÄGE TAB ──────────────────────────────────────────────────
+function renderEintraegeTab(p, el) {
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-primary btn-full';
+  addBtn.style.marginBottom = '16px';
+  addBtn.textContent = '+ Eintrag hinzufügen';
+  addBtn.onclick = () => openAddEntry(p.id);
+  el.appendChild(addBtn);
+
+  const entries = S.entries.filter(e=>e.projectId===p.id).sort((a,b)=>new Date(b.start)-new Date(a.start));
+  if (!entries.length) {
+    el.innerHTML += '<div class="empty-state">Noch keine Einträge für dieses Projekt.</div>';
+    return;
+  }
+
+  const groups = {};
+  entries.forEach(e => { const k=new Date(e.start).toDateString(); if(!groups[k]) groups[k]=[]; groups[k].push(e); });
+
+  Object.values(groups).forEach(dayEntries => {
+    const total = dayEntries.reduce((s,e)=>s+e.duration,0);
+    const week  = isoWeek(dayEntries[0].start);
+    const hasC  = p.corrections?.some(c=>c.week===week);
+    const grp   = document.createElement('div'); grp.className='day-group';
+    grp.innerHTML = `<div class="day-header"><span>${fmtDate(dayEntries[0].start)}</span>${hasC?`<span class="corr-badge" onclick="openProjSettings('${p.id}')">⚠ Korrektur</span>`:''}<span>${fmtShort(total)}</span></div>`;
+    dayEntries.forEach(e => {
+      const row = document.createElement('div'); row.className='entry-row';
+      row.innerHTML=`
+        <div class="entry-dot" style="background:${p.color}"></div>
+        <div class="entry-info">
+          <div class="entry-proj">${p.name}</div>
+          <div class="entry-time">${fmtTime(e.start)} → ${fmtTime(e.end)}</div>
+        </div>
+        <div class="entry-dur">${fmtShort(e.duration)}</div>
+        <div class="entry-acts">
+          <button class="icon-btn" onclick="openEditEntry('${e.id}')" title="Bearbeiten">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="icon-btn" onclick="deleteEntry('${e.id}')" title="Löschen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>`;
+      grp.appendChild(row);
+    });
+    el.appendChild(grp);
+  });
+}
+
+// ── AUSWERTUNG TAB ────────────────────────────────────────────────
+function renderAuswertungTab(p, el) {
+  const now  = new Date();
+  const mon  = getMon(now);
+  const sun  = new Date(mon); sun.setDate(mon.getDate()+7);
+  const we   = S.entries.filter(e=>e.projectId===p.id && new Date(e.start)>=mon && new Date(e.start)<sun);
+
+  // Balance
+  const balMs = calcBalance(p);
+  const balDiv = document.createElement('div');
+  balDiv.className = 'balance-card';
+  balDiv.innerHTML=`<div><div class="card-title">Balance</div><div class="balance-value ${balClass(balMs)}">${fmtBalance(balMs)}</div><div class="balance-meta">Soll ${p.weeklyHours}h/Woche · ${p.workDays} Tage · Startsaldo: ${p.balanceOffsetMin>=0?'+':''}${p.balanceOffsetMin}min</div></div>`;
+  el.appendChild(balDiv);
+
+  // Week bar chart
+  el.innerHTML += `<div class="section-title">Diese Woche</div>`;
+  const days=['Mo','Di','Mi','Do','Fr','Sa','So'], dayMs=Array(7).fill(0);
+  we.forEach(e=>{ dayMs[(new Date(e.start).getDay()+6)%7]+=e.duration; });
+  const maxMs=Math.max(...dayMs,1), todayDow=(now.getDay()+6)%7;
+  const grid=document.createElement('div'); grid.className='week-grid';
+  days.forEach((label,i)=>{
+    const h=Math.round(dayMs[i]/360000)/10, pct=Math.round((dayMs[i]/maxMs)*100);
+    grid.innerHTML+=`<div class="wday"><div class="wday-label">${label}</div><div class="wbar-wrap"><div class="wbar ${i===todayDow?'today':''}" style="height:${Math.max(pct,2)}%"></div></div><div class="wday-h">${h>0?h+'h':''}</div></div>`;
+  });
+  el.appendChild(grid);
+
+  // Summary rows
+  const weekTotal  = we.reduce((s,e)=>s+e.duration,0);
+  const todayTotal = S.entries.filter(e=>e.projectId===p.id && new Date(e.start).toDateString()===now.toDateString()).reduce((s,e)=>s+e.duration,0);
+  const allTotal   = S.entries.filter(e=>e.projectId===p.id).reduce((s,e)=>s+e.duration,0);
+  const thisWeek   = isoWeek(now);
+  const corrMs     = (p.corrections||[]).filter(c=>c.week===thisWeek).reduce((s,c)=>s+c.hours*3600000,0);
+  const adjTarget  = p.weeklyHours*3600000 - corrMs;
+  const wDiff      = weekTotal - adjTarget;
+  const wDiffColor = wDiff>=0?'var(--success)':'var(--danger)';
+  const wDiffStr   = (wDiff>=0?'+':'−')+fmtShort(Math.abs(wDiff));
+
+  const rows = [
+    ['Heute', fmtShort(todayTotal)||'0 min', ''],
+    [`Diese Woche`, fmtShort(weekTotal)||'0 min', `<span style="color:${wDiffColor};font-size:13px">${wDiffStr}</span>`],
+    [`Wochensoll${corrMs>0?' (korrigiert)':''}`, fmtShort(adjTarget), ''],
+    ['Gesamt', fmtShort(allTotal)||'0 min', '']
+  ];
+  rows.forEach(([l,v,extra]) => {
+    const row = document.createElement('div'); row.className='stat-row';
+    row.innerHTML=`<span class="stat-label">${l}</span><span class="stat-val">${v} ${extra}</span>`;
+    el.appendChild(row);
+  });
+
+  // Export
+  el.innerHTML += `<div class="section-title" style="margin-top:24px">Export</div>`;
+  const eb = document.createElement('button');
+  eb.className='export-btn';
+  eb.innerHTML='↓ CSV exportieren (dieses Projekt)';
+  eb.onclick=()=>exportProject(p.id);
+  el.appendChild(eb);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STAMPING
+// ═══════════════════════════════════════════════════════════════════
+function stampIn(pid) {
+  S.active = { projectId: pid, start: new Date() };
+  save(); renderProjectView(); updateHeader();
+  showToast('Eingestempelt ✓');
+}
+function openStopConfirm() {
+  if (!S.active) return;
+  const p = S.projects.find(x=>x.id===S.active.projectId);
+  const dur = Date.now() - new Date(S.active.start).getTime();
+  document.getElementById('stop-info').innerHTML = `<strong>${p?p.name:'–'}</strong><br>seit ${fmtTime(S.active.start)} · ${fmtShort(dur)}`;
+  document.getElementById('modal-stop').classList.add('show');
+}
+function confirmStop() {
+  if (!S.active) return;
+  const end = new Date();
+  S.entries.unshift({ id:uid(), projectId:S.active.projectId, start:S.active.start, end, duration:end-new Date(S.active.start) });
+  S.active = null;
+  stopTimer();
+  closeModal('modal-stop');
+  save(); renderProjectView(); updateHeader();
+  showToast('Ausgestempelt ✓');
+}
+function updateHeader() {
+  const sub = document.getElementById('header-sub');
+  if (S.active) {
+    const p = S.projects.find(x=>x.id===S.active.projectId);
+    sub.textContent = `▶ ${p?p.name:'–'} · seit ${fmtTime(S.active.start)}`;
+    sub.style.color = 'var(--success)';
+  } else {
+    sub.textContent = 'Kein aktives Projekt';
+    sub.style.color = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BALANCE CALCULATION
+// ═══════════════════════════════════════════════════════════════════
+function calcBalance(p) {
+  const entries = S.entries.filter(e=>e.projectId===p.id);
+  const totalWorked = entries.reduce((s,e)=>s+e.duration,0);
+  if (!entries.length) return (p.balanceOffsetMin||0)*60000;
+
+  const sorted = [...entries].sort((a,b)=>new Date(a.start)-new Date(b.start));
+  const firstMon = getMon(sorted[0].start);
+  const thisMon  = getMon(new Date());
+  const completeWeeks = Math.max(0, Math.round((thisMon-firstMon)/(7*24*3600000)));
+
+  const weeklyMs = p.weeklyHours * 3600000;
+  const dailyMs  = weeklyMs / (p.workDays||5);
+  const todayDow = (new Date().getDay()+6)%7;
+  // Count elapsed work days in current week (capped at workDays)
+  const elapsedWorkDays = Math.min(todayDow+1, p.workDays||5);
+  const currentExpected = elapsedWorkDays * dailyMs;
+
+  const corrMs = (p.corrections||[]).reduce((s,c)=>s+c.hours*3600000,0);
+  const expected = completeWeeks*weeklyMs + currentExpected - corrMs;
+  return totalWorked - expected + (p.balanceOffsetMin||0)*60000;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PROJECTS
+// ═══════════════════════════════════════════════════════════════════
+function openAddProject() {
+  document.getElementById('np-name').value = '';
+  document.getElementById('np-hours').value = 40;
+  document.getElementById('np-days').value  = 5;
+  S.newProjColor = COLORS[0];
+  renderColorPicker('np-colors', 'new');
+  document.getElementById('modal-add-proj').classList.add('show');
+}
+function saveNewProject() {
+  const name = document.getElementById('np-name').value.trim();
+  if (!name) { showToast('Bitte Namen eingeben'); return; }
+  const p = {
+    id: uid(), name, color: S.newProjColor,
+    weeklyHours: parseFloat(document.getElementById('np-hours').value)||40,
+    workDays: parseInt(document.getElementById('np-days').value)||5,
+    balanceOffsetMin: 0, corrections: []
+  };
+  S.projects.push(p);
+  save(); closeModal('modal-add-proj');
+  buildNav(); selectProject(p.id, 'stempel');
+  showToast('Projekt angelegt ✓');
+}
+
+function openProjSettings(pid) {
+  const p = S.projects.find(x=>x.id===pid);
+  if (!p) return;
+  document.getElementById('ps-id').value     = pid;
+  document.getElementById('ps-name').value   = p.name;
+  document.getElementById('ps-hours').value  = p.weeklyHours;
+  document.getElementById('ps-days').value   = p.workDays||5;
+  document.getElementById('ps-offset').value = p.balanceOffsetMin||0;
+  document.getElementById('ps-corr-week').value  = isoWeek(new Date());
+  document.getElementById('ps-corr-hours').value = '';
+  S.editProjColor = p.color;
+  renderColorPicker('ps-colors', 'edit');
+  renderCorrList(p);
+  document.getElementById('modal-proj-settings').classList.add('show');
+}
+function saveProjSettings() {
+  const pid = document.getElementById('ps-id').value;
+  const p   = S.projects.find(x=>x.id===pid); if (!p) return;
+  p.name            = document.getElementById('ps-name').value.trim() || p.name;
+  p.color           = S.editProjColor;
+  p.weeklyHours     = parseFloat(document.getElementById('ps-hours').value)||40;
+  p.workDays        = parseInt(document.getElementById('ps-days').value)||5;
+  p.balanceOffsetMin= parseInt(document.getElementById('ps-offset').value)||0;
+  save(); closeModal('modal-proj-settings');
+  buildNav(); renderProjectView(); showToast('Einstellungen gespeichert ✓');
+}
+function deleteCurrentProject() {
+  const pid = document.getElementById('ps-id').value;
+  if (!confirm('Projekt und alle Einträge löschen?')) return;
+  S.projects = S.projects.filter(x=>x.id!==pid);
+  S.entries  = S.entries.filter(e=>e.projectId!==pid);
+  if (S.active?.projectId===pid) { S.active=null; stopTimer(); }
+  currentProjectId = null;
+  save(); closeModal('modal-proj-settings');
+  buildNav();
+  if (S.projects.length) selectProject(S.projects[0].id);
+  else { document.getElementById('page-overview').classList.add('active'); document.getElementById('pages-container').innerHTML=''; }
+  showToast('Projekt gelöscht');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COLOR PICKER
+// ═══════════════════════════════════════════════════════════════════
+function renderColorPicker(containerId, mode) {
+  const el = document.getElementById(containerId); el.innerHTML='';
+  const current = mode==='new' ? S.newProjColor : S.editProjColor;
+  COLORS.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'color-dot'+(c===current?' sel':'');
+    d.style.background = c;
+    d.onclick = () => { if(mode==='new') S.newProjColor=c; else S.editProjColor=c; renderColorPicker(containerId,mode); };
+    el.appendChild(d);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CORRECTIONS
+// ═══════════════════════════════════════════════════════════════════
+const CORR_LABELS = {urlaub:'Urlaub',feiertag:'Feiertag',krank:'Krank',sonstige:'Sonstiges'};
+
+function renderCorrList(p) {
+  const el = document.getElementById('ps-corr-list');
+  if (!p.corrections?.length) { el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:0 0 10px">Noch keine Korrekturen.</div>'; return; }
+  el.innerHTML='';
+  [...p.corrections].sort((a,b)=>b.week>a.week?1:-1).forEach(c=>{
+    const d=document.createElement('div'); d.className='corr-item';
+    d.innerHTML=`<span class="corr-week">${c.week}</span><span class="corr-type-badge t-${c.type}">${CORR_LABELS[c.type]||c.type}</span><span class="corr-h">−${c.hours}h</span><button class="icon-btn" onclick="deleteCorr('${document.getElementById('ps-id').value}','${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`;
+    el.appendChild(d);
+  });
+}
+function addCorr() {
+  const pid  = document.getElementById('ps-id').value;
+  const p    = S.projects.find(x=>x.id===pid); if(!p) return;
+  const week = document.getElementById('ps-corr-week').value.trim();
+  const type = document.getElementById('ps-corr-type').value;
+  const hours= parseFloat(document.getElementById('ps-corr-hours').value);
+  if (!week||!hours||hours<=0) { showToast('Bitte KW und Stunden angeben'); return; }
+  if (!/^\d{4}-W\d{2}$/.test(week)) { showToast('Format: JJJJ-WKW, z.B. 2025-W03'); return; }
+  if (!p.corrections) p.corrections=[];
+  p.corrections.push({id:uid(),week,type,hours});
+  save(); renderCorrList(p); document.getElementById('ps-corr-hours').value='';
+  showToast('Korrektur hinzugefügt ✓');
+}
+function deleteCorr(pid, cid) {
+  const p=S.projects.find(x=>x.id===pid); if(!p) return;
+  p.corrections=p.corrections.filter(c=>c.id!==cid);
+  save(); renderCorrList(p); showToast('Korrektur entfernt');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ENTRY MODAL
+// ═══════════════════════════════════════════════════════════════════
+function openAddEntry(preselPid) {
+  document.getElementById('entry-modal-title').textContent='Eintrag hinzufügen';
+  document.getElementById('em-id').value='';
+  fillProjSelect(preselPid||currentProjectId);
+  document.getElementById('em-date').value=fmtDateISO(new Date());
+  document.getElementById('em-start').value='09:00';
+  document.getElementById('em-end').value='17:00';
+  document.getElementById('modal-entry').classList.add('show');
+}
+function openEditEntry(eid) {
+  const e=S.entries.find(x=>x.id===eid); if(!e) return;
+  document.getElementById('entry-modal-title').textContent='Eintrag bearbeiten';
+  document.getElementById('em-id').value=eid;
+  fillProjSelect(e.projectId);
+  document.getElementById('em-date').value=fmtDateISO(e.start);
+  document.getElementById('em-start').value=fmtTime(e.start);
+  document.getElementById('em-end').value=fmtTime(e.end);
+  document.getElementById('modal-entry').classList.add('show');
+}
+function fillProjSelect(selId) {
+  const sel=document.getElementById('em-proj'); sel.innerHTML='';
+  S.projects.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; if(p.id===selId) o.selected=true; sel.appendChild(o); });
+}
+function saveEntry() {
+  const pid=document.getElementById('em-proj').value;
+  const date=document.getElementById('em-date').value;
+  const st=document.getElementById('em-start').value;
+  const en=document.getElementById('em-end').value;
+  if (!date||!st||!en) { showToast('Bitte alle Felder ausfüllen'); return; }
+  const start=new Date(date+'T'+st), end=new Date(date+'T'+en);
+  if (end<=start) { showToast('Ende muss nach Start liegen'); return; }
+  const eid=document.getElementById('em-id').value;
+  if (eid) {
+    const i=S.entries.findIndex(x=>x.id===eid);
+    if(i>=0) S.entries[i]={...S.entries[i],projectId:pid,start,end,duration:end-start};
+  } else {
+    S.entries.unshift({id:uid(),projectId:pid,start,end,duration:end-start});
+  }
+  closeModal('modal-entry'); save(); renderProjectView();
+  showToast(eid?'Eintrag gespeichert ✓':'Eintrag hinzugefügt ✓');
+}
+function deleteEntry(eid) {
+  S.entries=S.entries.filter(e=>e.id!==eid); save(); renderProjectView(); showToast('Eintrag gelöscht');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GLOBAL SETTINGS / OVERVIEW
+// ═══════════════════════════════════════════════════════════════════
+function openGlobalSettings() {
+  const el=document.getElementById('global-stats-content'); el.innerHTML='';
+  if (!S.projects.length) { el.innerHTML='<div style="color:var(--muted);font-size:14px">Noch keine Projekte.</div>'; }
+  else {
+    S.projects.forEach(p=>{
+      const balMs=calcBalance(p);
+      const allMs=S.entries.filter(e=>e.projectId===p.id).reduce((s,e)=>s+e.duration,0);
+      const row=document.createElement('div');
+      row.className='stat-row'; row.style.marginBottom='8px';
+      row.innerHTML=`<span style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:${p.color};display:inline-block;flex-shrink:0"></span><span style="font-size:14px;font-weight:500">${p.name}</span></span><span style="text-align:right"><span class="stat-val ${balClass(balMs)}" style="font-size:15px">${fmtBalance(balMs)}</span><br><span style="font-size:12px;color:var(--muted)">${fmtShort(allMs)} gesamt</span></span>`;
+      el.appendChild(row);
+    });
+  }
+  document.getElementById('modal-global').classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════════════════════
+function toCSV(entries) {
+  const rows=[['Datum','KW','Projekt','Start','Ende','Dauer (min)']];
+  [...entries].sort((a,b)=>new Date(b.start)-new Date(a.start)).forEach(e=>{
+    const p=S.projects.find(x=>x.id===e.projectId);
+    rows.push([new Date(e.start).toLocaleDateString('de-DE'),isoWeek(e.start),p?p.name:'?',fmtTime(e.start),fmtTime(e.end),Math.round(e.duration/60000)]);
+  });
+  return rows.map(r=>r.join(';')).join('\n');
+}
+function dl(content,name) {
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\uFEFF'+content],{type:'text/csv;charset=utf-8'})); a.download=name; a.click();
+}
+function exportProject(pid) { dl(toCSV(S.entries.filter(e=>e.projectId===pid)),'projekt_'+pid+'.csv'); }
+function exportAll()   { dl(toCSV(S.entries),'zeiterfassung_alle.csv'); }
+function exportWeek()  {
+  const mon=getMon(new Date()),sun=new Date(mon);sun.setDate(mon.getDate()+7);
+  dl(toCSV(S.entries.filter(e=>new Date(e.start)>=mon&&new Date(e.start)<sun)),'zeiterfassung_woche.csv');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+load();
+buildNav();
+updateHeader();
+if (S.projects.length) {
+  selectProject(S.projects[0].id, 'stempel');
+} else {
+  document.getElementById('page-overview').classList.add('active');
+}
+if (S.active && !timerInt) startTimer();
+</script>
+</body>
+</html>
